@@ -1,0 +1,21 @@
+{
+  "name": "Nightstand Clock+",
+  "short_name": "Clock+",
+  "start_url": "./index4_Rob.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192/000000/FFFFFF/?text=Clock%2B",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512/000000/FFFFFF/?text=Clock%2B",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

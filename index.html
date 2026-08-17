@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Nightstand Clock</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Clock">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/000000/FFFFFF/?text=Clock">
+    
+    <!-- Premium UI Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400&display=swap" rel="stylesheet">
+    
+    <!-- Professional Minimalist Icons (Phosphor) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-primary: rgba(255, 255, 255, 0.92); 
+            --text-secondary: rgba(255, 255, 255, 0.5); 
+            --text-tertiary: rgba(255, 255, 255, 0.3); 
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: var(--bg-color); color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; user-select: none;
+            -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* Dimming Overlay for Evening Hours */
+        body.is-dimmed {
+            --text-primary: rgba(255, 255, 255, 0.6); 
+            --text-secondary: rgba(255, 255, 255, 0.35); 
+            --text-tertiary: rgba(255, 255, 255, 0.2); 
+        }
+
+        /* Full screen container */
+        #app-container {
+            width: 100vw; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* Drifting container for Burn-in Protection & Sleep Fade */
+        #shift-container {
+            width: 94vw; height: 94vh;
+            display: flex; flex-direction: column;
+            transition: transform 4s ease-in-out, opacity 1.5s ease-in-out; 
+            box-sizing: border-box;
+            opacity: 1; 
+        }
+        
+        /* Date Display */
+        #date-display {
+            font-size:6.2vh; font-weight: 400; color: var(--text-tertiary);
+            text-align: center; letter-spacing: 0.1vw; text-transform: uppercase;
+            padding-bottom: 1vh;
+        }
+
+        /* ===============================
+           TOP: CLOCK 
+           =============================== */
+        #clock-section {
+            display: flex; justify-content: center; align-items: center; 
+            width: 100%; flex: 1; 
+        }
+        #time {
+            font-size: 55vh; font-weight: 150; line-height: 0.75; 
+            letter-spacing: -0.9vw; font-variant-numeric: tabular-nums; 
+            margin: 0;
+        }
+
+        /* ===============================
+           BOTTOM: WEATHER DASHBOARD
+           =============================== */
+        #weather-section {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            width: 100%; padding-bottom: 2vh; gap: 5vw; 
+        }
+
+        /* --- Left: Current Weather --- */
+        #current-weather {
+            display: flex; align-items: center; gap: 2vw; flex: 0 0 auto; 
+        }
+        #current-icon {
+            font-size: 14vh; color: var(--text-primary);
+        }
+        #current-temp-container {
+            display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+        }
+        .temp-actual {
+            font-size: 18vh; font-weight: 300; line-height: 0.8; letter-spacing: -0.9vw;
+        }
+        .temp-feels {
+            font-size: 14vh; font-weight: 300; color: var(--text-secondary);
+            line-height: 0.85; margin-top: 1vh; letter-spacing: -0.1vw;
+        }
+
+        /* --- Right: Forecast --- */
+        #forecast {
+            display: flex; flex: 1; justify-content: space-between; 
+            align-items: flex-end; padding-bottom: 1.5vh; 
+        }
+        .forecast-item {
+            display: flex; flex-direction: column; align-items: center; gap: 1.2vh;
+        }
+        .forecast-time {
+            font-size: 4.5vh; color: var(--text-tertiary); font-weight: 400; letter-spacing: 0.1vw;
+        }
+        .forecast-icon {
+            font-size: 10.5vh; color: var(--text-secondary);
+        }
+        .forecast-temp {
+            font-size: 10vh; font-weight: 400; color: var(--text-primary);
+        }
+
+        /* Invisible video for iOS 15 screen wake */
+        #ios-wakelock { display: none; }
+
+        /* Battery Warning Icon (Android Only) */
+        #battery-warning {
+            position: fixed; top: 3vh; right: 3vw;
+            font-size: 4vh; color: #ff3b30;
+            display: none; /* Hidden by default */
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <div id="shift-container">
+            <div id="date-display">--</div>
+            
+            <div id="clock-section">
+                <div id="time">00:00</div>
+            </div>
+
+            <div id="weather-section">
+                <div id="current-weather">
+                    <i id="current-icon" class="ph ph-thermometer"></i>
+                    <div id="current-temp-container">
+                        <span class="temp-actual" id="actual-temp">--°C</span>
+                        <span class="temp-feels" id="feels-temp">/ --°C</span>
+                    </div>
+                </div>
+                <div id="forecast"><!-- Injected via JS --></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Fixed position container for overlays like battery warning -->
+    <i id="battery-warning" class="ph ph-battery-warning-vertical"></i>
+
+    <!-- Blank tiny video to prevent iOS 15 from sleeping -->
+    <video id="ios-wakelock" playsinline muted loop autoplay>
+        <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAABzJtZGF0AAACrgYF//+//7z1YvD/4AAARhABAAAKxwM0e/D/4QAALe4B+gAAAeBmiwEAT///4AAL1wIf///wAAAAgGZAAAADuAbwAAAA+EAAgAAAANAAIAAAD2QAAAAAEAAAAAAQAAAAAgAAANoAAAAACAAAB3Rtb292AAAAbG12aGQAAAAA3nN31N5zd9QAAAEAAAAAAQABAAABAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAGGlvZHMAAAAAEICAgAcAT/////8AAALldHJhawAAAFx0a2hkAAAAAd5zd9Tec3fUAAAAAQAAAAAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAABAAAAAQAAAAAACkbWRpYQAAACBtZGhkAAAAAN5zd9Tec3fUAAABAAAAAAEAABVxAAAAAAAwbWhkbQAAAAB2cHJ0AAAAAQAAABgAAAAAAABtaW5mAAAAFHZtaGQAAAABAAAAAAAAAAAAAAAkZGluZgAAABxkcmVmAAAAAAAAAAEAAAAMdXJsIAAAAAEAAAKEc3RibAAAAHlzZHRwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABhzdHRzAAAAAAAAAAEAAAAIAAAAgAAAABxzdHNjAAAAAAAAAAEAAAABAAAACAAAAAEAAABMc3RzeiAAAAAAAAAAAAAACAAAAA0AAAAPAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAOAAAABRzdGNvAAAAAAAAAAEAAAAwAAAAGHN0c3MAAAAAAAAAAQAAAAEAAAABAAAAA2VkdHMAAAAcZWxzdAAAAAAAAAABAAAACAAAAAAABAAAAAA=" type="video/mp4">
+    </video>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+        
+        // --- GLOBAL STATE & CONFIG ---
+        const LAT = 50.10, LON = 8.54; // rounded to ~1 km so a public URL doesn't pinpoint home
+        let wakeLock = null;
+        let isManualSleep = false;
+        let peekTimeout = null;
+        let lastWeatherSuccess = 0; // timestamp of the last successful weather fetch (0 = never)
+
+        // --- CORE FUNCTIONS ---
+        function updateClockAndState() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            // 1. Update Clock UI
+            document.getElementById('time').innerText = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            
+            // 2. Nightly Memory Reload
+            if (hours === 3 && minutes === 0 && seconds === 0) {
+                window.location.reload();
+            }
+
+            // 3. Determine Sleep & Dim State
+            const isAutoSleepTime = (hours === 22 && minutes >= 5) || hours > 22 || hours < 6;
+            const isDimTime = hours >= 20 && !isAutoSleepTime;
+            
+            const shouldBeAsleep = isManualSleep || isAutoSleepTime;
+
+            // 4. Apply UI State
+            const shiftContainer = document.getElementById('shift-container');
+            if (shouldBeAsleep) {
+                if (shiftContainer.style.opacity !== '0') shiftContainer.style.opacity = '0';
+            } else {
+                if (shiftContainer.style.opacity !== '1') shiftContainer.style.opacity = '1';
+            }
+            document.body.classList.toggle('is-dimmed', isDimTime && !shouldBeAsleep);
+        }
+
+        function updateDate() {
+            const now = new Date();
+            const options = { weekday: 'long', month: 'short', day: 'numeric' };
+            document.getElementById('date-display').innerText = now.toLocaleDateString('en-US', options);
+        }
+
+        function moveScreen() {
+            const container = document.getElementById('shift-container');
+            container.style.transform = `translate(${Math.floor(Math.random()*15)-7}px, ${Math.floor(Math.random()*15)-7}px)`;
+        }
+
+        // --- EVENT LISTENERS ---
+        function setupInteractions() {
+            // Manual Sleep Override (Double Tap)
+            document.body.addEventListener('dblclick', () => {
+                isManualSleep = !isManualSleep;
+                updateClockAndState(); // Apply change immediately
+            });
+            
+            // Tap to Peek
+            document.body.addEventListener('click', () => {
+                const isAutoSleepTime = new Date().getHours() >= 22 || new Date().getHours() < 6;
+                const currentlyAsleep = isManualSleep || isAutoSleepTime;
+
+                if (currentlyAsleep) {
+                    clearTimeout(peekTimeout);
+                    const shiftContainer = document.getElementById('shift-container');
+                    shiftContainer.style.opacity = '1';
+                    peekTimeout = setTimeout(() => {
+                        shiftContainer.style.opacity = '0';
+                    }, 5000); // Show for 5 seconds
+                }
+            });
+        }
+        
+        // --- BATTERY LOGIC (ANDROID/CHROME ONLY) ---
+        function checkBatteryStatus(battery) {
+            const warningIcon = document.getElementById('battery-warning');
+            if (!battery.charging && battery.level < 0.2) {
+                warningIcon.style.display = 'block';
+            } else {
+                warningIcon.style.display = 'none';
+            }
+        }
+        
+        function setupBatteryMonitor() {
+            if ('getBattery' in navigator) {
+                navigator.getBattery().then(battery => {
+                    checkBatteryStatus(battery);
+                    battery.addEventListener('chargingchange', () => checkBatteryStatus(battery));
+                    battery.addEventListener('levelchange', () => checkBatteryStatus(battery));
+                });
+            }
+        }
+
+        // --- WEATHER LOGIC ---
+        const weatherCodeToIcon = {
+            0: 'ph-sun', 1: 'ph-cloud-sun', 2: 'ph-cloud-sun', 3: 'ph-cloud', 45: 'ph-cloud-fog', 48: 'ph-cloud-fog',
+            51: 'ph-cloud-rain', 53: 'ph-cloud-rain', 55: 'ph-cloud-rain', 56: 'ph-cloud-rain', 57: 'ph-cloud-rain',
+            61: 'ph-drop', 63: 'ph-drop', 65: 'ph-drop', 66: 'ph-drop', 67: 'ph-drop', 71: 'ph-snowflake', 73: 'ph-snowflake', 75: 'ph-snowflake', 77: 'ph-snowflake',
+            80: 'ph-cloud-showers', 81: 'ph-cloud-showers', 82: 'ph-cloud-showers', 85: 'ph-cloud-snow', 86: 'ph-cloud-snow',
+            95: 'ph-cloud-lightning', 96: 'ph-cloud-lightning', 99: 'ph-cloud-lightning'
+        };
+        function getIconClass(code) { return weatherCodeToIcon[code] || 'ph-thermometer'; }
+        
+        const WEATHER_MAX_AGE = 30 * 60 * 1000; // after 30 min without a refresh, hide stale values
+
+        function renderWeather(data) {
+            document.getElementById('actual-temp').innerText = `${Math.round(data.current.temperature_2m)}°C`;
+            document.getElementById('feels-temp').innerText = `/ ${Math.round(data.current.apparent_temperature)}°C`;
+            document.getElementById('current-icon').className = `ph ${getIconClass(data.current.weather_code)}`;
+            document.getElementById('current-icon').removeAttribute('title');
+
+            const forecastContainer = document.getElementById('forecast');
+            forecastContainer.innerHTML = '';
+            const times = data.hourly.time;
+            let nextHourIndex = times.findIndex(t => t > (Date.now() / 1000));
+            if (nextHourIndex === -1) nextHourIndex = 0;
+
+            for (let i = 0; i < 4; i++) {
+                let idx = nextHourIndex + i;
+                const item = document.createElement('div');
+                item.className = 'forecast-item';
+                item.innerHTML = `
+                    <span class="forecast-time">${String(new Date(times[idx]*1000).getHours()).padStart(2, '0')}:00</span>
+                    <i class="ph ${getIconClass(data.hourly.weather_code[idx])} forecast-icon"></i>
+                    <span class="forecast-temp">${Math.round(data.hourly.temperature_2m[idx])}°</span>
+                `;
+                forecastContainer.appendChild(item);
+            }
+        }
+
+        // Shown only when data is missing or older than WEATHER_MAX_AGE, so we never
+        // display misleading stale values.
+        function showWeatherUnavailable() {
+            document.getElementById('actual-temp').innerText = '--°C';
+            document.getElementById('feels-temp').innerText = 'unavailable';
+            document.getElementById('current-icon').className = 'ph ph-cloud-slash';
+            document.getElementById('forecast').innerHTML = '';
+        }
+
+        async function fetchWeather() {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,apparent_temperature,weather_code&hourly=temperature_2m,weather_code&timeformat=unixtime&timezone=Europe%2FBerlin`;
+            const MAX_ATTEMPTS = 3;
+
+            for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+                try {
+                    const response = await fetch(url, { cache: 'no-store' });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    if (!data.current || typeof data.current.temperature_2m !== 'number') {
+                        throw new Error(`bad payload: ${data.reason || 'missing current data'}`);
+                    }
+                    renderWeather(data);
+                    lastWeatherSuccess = Date.now();
+                    return;
+                } catch (error) {
+                    console.error(`Weather fetch attempt ${attempt}/${MAX_ATTEMPTS} failed:`, error);
+                    // Leave the reason on the icon so it can be read on-device (long-press) if this recurs.
+                    document.getElementById('current-icon').title = `weather error: ${error.message} @ ${new Date().toLocaleTimeString()}`;
+                    if (attempt < MAX_ATTEMPTS) {
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                    }
+                }
+            }
+
+            // Every attempt failed. If the last good data is recent (< 30 min) keep showing it;
+            // otherwise hide it and show the unavailable indicator so it's not misleading.
+            if (lastWeatherSuccess === 0 || (Date.now() - lastWeatherSuccess) > WEATHER_MAX_AGE) {
+                showWeatherUnavailable();
+            }
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = async () => {
+            document.getElementById('ios-wakelock').play().catch(() => {});
+            if ('wakeLock' in navigator) {
+                try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+                document.addEventListener('visibilitychange', async () => {
+                    if (document.visibilityState === 'visible' && 'wakeLock' in navigator) {
+                        try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+                    }
+                });
+            }
+            
+            // Refresh weather whenever the page returns to the foreground. Old iOS Safari
+            // suspends timers while the phone sleeps, so the interval alone isn't enough.
+            // This is separate from the wakeLock handler above, which never runs on iOS
+            // versions without the Screen Wake Lock API (iPhone 6/7).
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') fetchWeather();
+            });
+            window.addEventListener('pageshow', () => fetchWeather());
+
+            // Initial UI setup
+            updateClockAndState();
+            updateDate();
+            fetchWeather();
+            setupInteractions();
+            setupBatteryMonitor();
+
+            // Start Timers
+            setInterval(updateClockAndState, 1000);
+            setInterval(fetchWeather, 15 * 60 * 1000);
+            setInterval(moveScreen, 60 * 1000);
+            setInterval(updateDate, 5 * 60 * 1000); // Check date every 5 mins
+        };
+    </script>
+</body>
+</html>
