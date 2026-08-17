@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clock-cache-v3';
+const CACHE_NAME = 'clock-cache-v4';
 const urlsToCache = [
   './index.html',
   './index4_Rob.html',

@@ -15,7 +15,7 @@
     <!-- Premium UI Font: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Professional Minimalist Icons (Phosphor) -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -73,7 +73,7 @@
             width: 100%; flex: 1; 
         }
         #time {
-            font-size: 55vh; font-weight: 150; line-height: 0.75; 
+            font-size: 55vh; font-weight: 700; line-height: 0.75;
             letter-spacing: -0.9vw; font-variant-numeric: tabular-nums; 
             margin: 0;
         }
@@ -91,7 +91,7 @@
             display: flex; align-items: center; gap: 2vw; flex: 0 0 auto; 
         }
         #current-icon {
-            font-size: 14vh; color: var(--text-primary);
+            width: 14vh; height: 14vh; object-fit: contain; flex-shrink: 0;
         }
         #current-temp-container {
             display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
@@ -116,7 +116,7 @@
             font-size: 4.5vh; color: var(--text-tertiary); font-weight: 400; letter-spacing: 0.1vw;
         }
         .forecast-icon {
-            font-size: 10.5vh; color: var(--text-secondary);
+            width: 10.5vh; height: 10.5vh; object-fit: contain; flex-shrink: 0;
         }
         .forecast-temp {
             font-size: 10vh; font-weight: 400; color: var(--text-primary);
@@ -150,7 +150,7 @@
 
             <div id="weather-section">
                 <div id="current-weather">
-                    <i id="current-icon" class="ph ph-thermometer"></i>
+                    <img id="current-icon" src="" alt="Weather Icon">
                     <div id="current-temp-container">
                         <span class="temp-actual" id="actual-temp">--°C</span>
                         <span class="temp-feels" id="feels-temp">/ --°C</span>
@@ -268,21 +268,49 @@
         }
 
         // --- WEATHER LOGIC ---
-        const weatherCodeToIcon = {
-            0: 'ph-sun', 1: 'ph-cloud-sun', 2: 'ph-cloud-sun', 3: 'ph-cloud', 45: 'ph-cloud-fog', 48: 'ph-cloud-fog',
-            51: 'ph-cloud-rain', 53: 'ph-cloud-rain', 55: 'ph-cloud-rain', 56: 'ph-cloud-rain', 57: 'ph-cloud-rain',
-            61: 'ph-drop', 63: 'ph-drop', 65: 'ph-drop', 66: 'ph-drop', 67: 'ph-drop', 71: 'ph-snowflake', 73: 'ph-snowflake', 75: 'ph-snowflake', 77: 'ph-snowflake',
-            80: 'ph-cloud-showers', 81: 'ph-cloud-showers', 82: 'ph-cloud-showers', 85: 'ph-cloud-snow', 86: 'ph-cloud-snow',
-            95: 'ph-cloud-lightning', 96: 'ph-cloud-lightning', 99: 'ph-cloud-lightning'
+        const bakedIcons = {
+            'clear-day': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="12" fill="#fcc44d"/><g fill="none" stroke="#fcc44d" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m32 4v4m0 24v4m14-14h4m-28-4h-4m21.18-17.18 2.82 2.82m-19.8 19.8 2.82 2.82m0-25.46-2.82 2.82m19.8 19.8-2.82 2.82"/></g></svg>',
+            'clear-night': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m46 32a14 14 0 1 1 -14-14 14 14 0 0 1 14 14z" fill="#f2e86d"/></svg>',
+            'cloudy': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m18 36a14 14 0 0 1 12.32-13.9a15 15 0 0 1 29.62 4.9a10 10 0 0 1 0 19h-41.8a14 14 0 0 1 -14.12-14.8a13.88 13.88 0 0 1 13.98-13.2" fill="#c6d4e1"/><path d="m18 36h41.8a10 10 0 0 0 .1-20a15 15 0 0 0 -29.6-4.9a14 14 0 0 0 -12.4 13.9" fill="#f2f2f2"/></svg>',
+            'drizzle': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m18 36a14 14 0 0 1 12.32-13.9a15 15 0 0 1 29.62 4.9a10 10 0 0 1 0 19h-41.8a14 14 0 0 1 -14.12-14.8a13.88 13.88 0 0 1 13.98-13.2" fill="#c6d4e1"/><path d="m18 36h41.8a10 10 0 0 0 .1-20a15 15 0 0 0 -29.6-4.9a14 14 0 0 0 -12.4 13.9" fill="#f2f2f2"/><g fill="none" stroke="#75b1d8" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m24 50v6m8-6v6m8-6v6"/></g></svg>',
+            'fog': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m18 36a14 14 0 0 1 12.32-13.9a15 15 0 0 1 29.62 4.9a10 10 0 0 1 0 19h-41.8a14 14 0 0 1 -14.12-14.8a13.88 13.88 0 0 1 13.98-13.2" fill="#c6d4e1"/><path d="m18 36h41.8a10 10 0 0 0 .1-20a15 15 0 0 0 -29.6-4.9a14 14 0 0 0 -12.4 13.9" fill="#f2f2f2"/><g fill="none" stroke="#94a3b3" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m12 50h40m-40 6h40"/></g></svg>',
+            'overcast': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path fill="#C6D4E1" d="M46,32h-0.1c-0.5-8.8-7.9-16-16.9-16c-8.4,0-15.5,5.8-16.8,13.8C6.9,31,3,35.6,3,41.2C3,47.2,7.9,52,13.8,52h28.4 c6.1,0,11-4.9,11-11C53.2,36,50,32.5,46,32z"/><path fill="#F2F2F2" d="M53.2,41c0-6.1-4.9-11-11-11H13.8C7.9,30,3,34.8,3,40.8c0,5.6,4.1,10.2,9.5,10.9 c0.4,0.1,0.7,0.2,1.2,0.2h28.4c6.1,0,11-4.9,11-11C53.2,41.5,53.2,41.2,53.2,41z"/></svg>',
+            'partly-cloudy-day': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16-8.4 0-15.5 5.8-16.8 13.8-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#c6d4e1"/><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16s-15.5 5.8-16.8 13.8c-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#f2f2f2"/><circle cx="26" cy="20" r="9" fill="#fcc44d"/><g fill="none" stroke="#fcc44d" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m26 8v3m0 18v3m9.9-12.9 2.1 2.1m-14.1 9.9 2.1 2.1m0-14.1-2.1 2.1m14.1 9.9-2.1 2.1m-12.9-9.9h3m-18 0h-3"/></g></svg>',
+            'partly-cloudy-night': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16-8.4 0-15.5 5.8-16.8 13.8-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#c6d4e1"/><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16s-15.5 5.8-16.8 13.8c-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#f2f2f2"/><path d="m32.5 28a10.5 10.5 0 1 1 -10.5-10.5 10.5 10.5 0 0 1 10.5 10.5z" fill="#f2e86d"/></svg>',
+            'partly-cloudy-day-rain': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16-8.4 0-15.5 5.8-16.8 13.8-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#c6d4e1"/><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16s-15.5 5.8-16.8 13.8c-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#f2f2f2"/><circle cx="26" cy="20" r="9" fill="#fcc44d"/><g fill="none" stroke="#fcc44d" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m26 8v3m0 18v3m9.9-12.9 2.1 2.1m-14.1 9.9 2.1 2.1m0-14.1-2.1 2.1m14.1 9.9-2.1 2.1m-12.9-9.9h3m-18 0h-3"/></g><g fill="none" stroke="#75b1d8" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m24 50v6m8-6v6m8-6v6"/></g></svg>',
+            'partly-cloudy-night-rain': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16-8.4 0-15.5 5.8-16.8 13.8-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#c6d4e1"/><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16s-15.5 5.8-16.8 13.8c-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#f2f2f2"/><path d="m32.5 28a10.5 10.5 0 1 1 -10.5-10.5 10.5 10.5 0 0 1 10.5 10.5z" fill="#f2e86d"/><g fill="none" stroke="#75b1d8" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m24 50v6m8-6v6m8-6v6"/></g></svg>',
+            'partly-cloudy-day-snow': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16-8.4 0-15.5 5.8-16.8 13.8-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#c6d4e1"/><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16s-15.5 5.8-16.8 13.8c-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#f2f2f2"/><circle cx="26" cy="20" r="9" fill="#fcc44d"/><g fill="none" stroke="#fcc44d" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m26 8v3m0 18v3m9.9-12.9 2.1 2.1m-14.1 9.9 2.1 2.1m0-14.1-2.1 2.1m14.1 9.9-2.1 2.1m-12.9-9.9h3m-18 0h-3"/></g><g fill="none" stroke="#75b1d8" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><g><path d="m24 50v6m4.24-4.24 4.25 4.24m-8.49-4.24-4.25 4.24"/></g><g><path d="m40 50v6m-4.24-4.24-4.25 4.24m8.49-4.24 4.25 4.24"/></g></g></svg>',
+            'partly-cloudy-night-snow': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16-8.4 0-15.5 5.8-16.8 13.8-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#c6d4e1"/><path d="m46 32h-.1c-.5-8.8-7.9-16-16.9-16s-15.5 5.8-16.8 13.8c-5.3 1.2-9.2 5.8-9.2 11.2 0 6.1 4.9 11 11 11h28.4c6.1 0 11-4.9 11-11 .1-5.7-4.1-10.4-9.4-10.9" fill="#f2f2f2"/><path d="m32.5 28a10.5 10.5 0 1 1 -10.5-10.5 10.5 10.5 0 0 1 10.5 10.5z" fill="#f2e86d"/><g fill="none" stroke="#75b1d8" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><g><path d="m24 50v6m4.24-4.24 4.25 4.24m-8.49-4.24-4.25 4.24"/></g><g><path d="m40 50v6m-4.24-4.24-4.25 4.24m8.49-4.24 4.25 4.24"/></g></g></svg>',
+            'rain': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m18 36a14 14 0 0 1 12.32-13.9a15 15 0 0 1 29.62 4.9a10 10 0 0 1 0 19h-41.8a14 14 0 0 1 -14.12-14.8a13.88 13.88 0 0 1 13.98-13.2" fill="#c6d4e1"/><path d="m18 36h41.8a10 10 0 0 0 .1-20a15 15 0 0 0 -29.6-4.9a14 14 0 0 0 -12.4 13.9" fill="#f2f2f2"/><g fill="none" stroke="#4a79a3" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m24 50v6m8-6v6m8-6v6"/></g></svg>',
+            'sleet': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m18 36a14 14 0 0 1 12.32-13.9a15 15 0 0 1 29.62 4.9a10 10 0 0 1 0 19h-41.8a14 14 0 0 1 -14.12-14.8a13.88 13.88 0 0 1 13.98-13.2" fill="#c6d4e1"/><path d="m18 36h41.8a10 10 0 0 0 .1-20a15 15 0 0 0 -29.6-4.9a14 14 0 0 0 -12.4 13.9" fill="#f2f2f2"/><g fill="none" stroke="#75b1d8" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m24 50v6"/><g><path d="m32 50v6m4.24-4.24 4.25 4.24m-8.49-4.24-4.25 4.24"/></g><path d="m40 50v6"/></g></svg>',
+            'snow': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m18 36a14 14 0 0 1 12.32-13.9a15 15 0 0 1 29.62 4.9a10 10 0 0 1 0 19h-41.8a14 14 0 0 1 -14.12-14.8a13.88 13.88 0 0 1 13.98-13.2" fill="#c6d4e1"/><path d="m18 36h41.8a10 10 0 0 0 .1-20a15 15 0 0 0 -29.6-4.9a14 14 0 0 0 -12.4 13.9" fill="#f2f2f2"/><g fill="none" stroke="#75b1d8" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><g><path d="m24 50v6m4.24-4.24 4.25 4.24m-8.49-4.24-4.25 4.24"/></g><g><path d="m40 50v6m-4.24-4.24-4.25 4.24m8.49-4.24 4.25 4.24"/></g></g></svg>',
+            'thunderstorms': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m18 36a14 14 0 0 1 12.32-13.9a15 15 0 0 1 29.62 4.9a10 10 0 0 1 0 19h-41.8a14 14 0 0 1 -14.12-14.8a13.88 13.88 0 0 1 13.98-13.2" fill="#7c8e9b"/><path d="m18 36h41.8a10 10 0 0 0 .1-20a15 15 0 0 0 -29.6-4.9a14 14 0 0 0 -12.4 13.9" fill="#94a3b3"/><path d="m39.5 44-7 8h11l-7 8" fill="none" stroke="#fcc44d" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>',
+            'thunderstorms-rain': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><path d="m18 36a14 14 0 0 1 12.32-13.9a15 15 0 0 1 29.62 4.9a10 10 0 0 1 0 19h-41.8a14 14 0 0 1 -14.12-14.8a13.88 13.88 0 0 1 13.98-13.2" fill="#7c8e9b"/><path d="m18 36h41.8a10 10 0 0 0 .1-20a15 15 0 0 0 -29.6-4.9a14 14 0 0 0 -12.4 13.9" fill="#94a3b3"/><path d="m26.5 44-7 8h11l-7 8" fill="none" stroke="#fcc44d" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/><g fill="none" stroke="#75b1d8" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"><path d="m40 50v6m8-6v6"/></g></svg>',
+            'not-available': '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="12" fill="none" stroke="#c6d4e1" stroke-miterlimit="10" stroke-width="3"/><path d="m24.42 24.42 15.16 15.16" fill="none" stroke="#c6d4e1" stroke-linecap="round" stroke-miterlimit="10" stroke-width="3"/></svg>'
         };
-        function getIconClass(code) { return weatherCodeToIcon[code] || 'ph-thermometer'; }
+
+        const weatherIconMap = {
+            0: { day: 'clear-day', night: 'clear-night' }, 1: { day: 'partly-cloudy-day', night: 'partly-cloudy-night' },
+            2: { day: 'partly-cloudy-day', night: 'partly-cloudy-night' }, 3: 'overcast', 45: 'fog', 48: 'fog',
+            51: 'drizzle', 53: 'drizzle', 55: 'drizzle', 56: 'sleet', 57: 'sleet', 61: 'rain', 63: 'rain', 65: 'rain',
+            66: 'sleet', 67: 'sleet', 71: 'snow', 73: 'snow', 75: 'snow', 77: 'snow',
+            80: { day: 'partly-cloudy-day-rain', night: 'partly-cloudy-night-rain' }, 81: { day: 'partly-cloudy-day-rain', night: 'partly-cloudy-night-rain' },
+            82: { day: 'partly-cloudy-day-rain', night: 'partly-cloudy-night-rain' }, 85: { day: 'partly-cloudy-day-snow', night: 'partly-cloudy-night-snow' },
+            86: { day: 'partly-cloudy-day-snow', night: 'partly-cloudy-night-snow' }, 95: 'thunderstorms', 96: 'thunderstorms-rain', 99: 'thunderstorms-rain'
+        };
+
+        function getIconUrl(code, isDay) {
+            const iconInfo = weatherIconMap[code] || 'not-available';
+            const iconName = typeof iconInfo === 'object' ? (isDay ? iconInfo.day : iconInfo.night) : iconInfo;
+            return `data:image/svg+xml;base64,${btoa(bakedIcons[iconName] || bakedIcons['not-available'])}`;
+        }
         
         const WEATHER_MAX_AGE = 30 * 60 * 1000; // after 30 min without a refresh, hide stale values
 
         function renderWeather(data) {
             document.getElementById('actual-temp').innerText = `${Math.round(data.current.temperature_2m)}°C`;
             document.getElementById('feels-temp').innerText = `/ ${Math.round(data.current.apparent_temperature)}°C`;
-            document.getElementById('current-icon').className = `ph ${getIconClass(data.current.weather_code)}`;
+            document.getElementById('current-icon').src = getIconUrl(data.current.weather_code, data.current.is_day === 1);
             document.getElementById('current-icon').removeAttribute('title');
 
             const forecastContainer = document.getElementById('forecast');
@@ -293,11 +321,13 @@
 
             for (let i = 0; i < 4; i++) {
                 let idx = nextHourIndex + i;
+                const hour = new Date(times[idx]*1000).getHours();
+                const isDayForecast = hour > 6 && hour < 20;
                 const item = document.createElement('div');
                 item.className = 'forecast-item';
                 item.innerHTML = `
-                    <span class="forecast-time">${String(new Date(times[idx]*1000).getHours()).padStart(2, '0')}:00</span>
-                    <i class="ph ${getIconClass(data.hourly.weather_code[idx])} forecast-icon"></i>
+                    <span class="forecast-time">${String(hour).padStart(2, '0')}:00</span>
+                    <img src="${getIconUrl(data.hourly.weather_code[idx], isDayForecast)}" class="forecast-icon" alt="icon">
                     <span class="forecast-temp">${Math.round(data.hourly.temperature_2m[idx])}°</span>
                 `;
                 forecastContainer.appendChild(item);
@@ -309,14 +339,14 @@
         function showWeatherUnavailable() {
             document.getElementById('actual-temp').innerText = '--°C';
             document.getElementById('feels-temp').innerText = 'unavailable';
-            document.getElementById('current-icon').className = 'ph ph-cloud-slash';
+            document.getElementById('current-icon').src = getIconUrl(null, true); // 'not-available' icon
             document.getElementById('forecast').innerHTML = '';
         }
 
         async function fetchWeather() {
             // Weather is fetched via a Cloudflare Worker proxy (Google-Trust-Services cert, trusted by
             // old iOS) because Open-Meteo's Let's Encrypt cert is no longer trusted by iPhone 6/7.
-            const url = `https://odd-violet-21d8.adrianinfo.workers.dev/?latitude=${LAT}&longitude=${LON}&current=temperature_2m,apparent_temperature,weather_code&hourly=temperature_2m,weather_code&timeformat=unixtime&timezone=Europe%2FBerlin`;
+            const url = `https://odd-violet-21d8.adrianinfo.workers.dev/?latitude=${LAT}&longitude=${LON}&current=temperature_2m,apparent_temperature,weather_code,is_day&hourly=temperature_2m,weather_code&timeformat=unixtime&timezone=Europe%2FBerlin`;
             const MAX_ATTEMPTS = 3;
 
             for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
