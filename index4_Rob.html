@@ -229,7 +229,13 @@
     </video>
 
     <script>
-        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+        // Service worker removed: on old iOS Safari its all-or-nothing cache made updates
+        // fail and the phone kept serving a stale page. Proactively unregister any worker
+        // previously installed on a device, and clear its caches, so pages always load fresh.
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister())).catch(() => {});
+            if (window.caches) caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+        }
         
         const LAT = 50.10, LON = 8.54; // rounded to ~1 km so a public URL doesn't pinpoint home
         let wakeLock = null; let isManualSleep = false; let peekTimeout = null;
