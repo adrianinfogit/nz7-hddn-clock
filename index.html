@@ -308,7 +308,86 @@
             const iconName = typeof iconInfo === 'object' ? (isDay ? iconInfo.day : iconInfo.night) : iconInfo;
             return `data:image/svg+xml;base64,${btoa(bakedIcons[iconName] || bakedIcons['not-available'])}`;
         }
-        
+
+        // --- MET NORWAY ADAPTER ---
+        // Weather comes from MET Norway (api.met.no). Its certificate chains to a root the old
+        // iPhones trust, unlike Open-Meteo's (ISRG Root X2, iOS 16+ only). The response is reshaped
+        // into the Open-Meteo-style object renderWeather() was written for.
+        // NOTE: no ?. or ?? below — iOS 12 Safari doesn't support them.
+        const metnoToWmo = {
+            clearsky: 0, fair: 1, partlycloudy: 2, cloudy: 3, fog: 45,
+            lightrain: 61, rain: 63, heavyrain: 65,
+            lightrainshowers: 80, rainshowers: 81, heavyrainshowers: 82,
+            lightsleet: 66, sleet: 66, heavysleet: 67, lightsleetshowers: 66, sleetshowers: 66, heavysleetshowers: 67,
+            lightsnow: 71, snow: 73, heavysnow: 75, lightsnowshowers: 85, snowshowers: 85, heavysnowshowers: 86
+        };
+
+        // 'partlycloudy_night' -> { code: 2, isDay: false }; any '...andthunder' -> thunderstorm with rain
+        function metnoSymbol(symbol) {
+            const parts = symbol.split('_');
+            let code = metnoToWmo[parts[0]];
+            if (code === undefined && parts[0].indexOf('thunder') !== -1) code = parts[0].indexOf('heavy') === 0 ? 99 : 96;
+            return { code: code === undefined ? null : code, isDay: parts[1] !== 'night' };
+        }
+
+        // met.no only forecasts from the current hour on, so today's high/low is kept as a running
+        // record (per calendar day) so the morning's values aren't lost as the day goes on.
+        function trackTodayHighLow(max, min) {
+            const today = new Date().toDateString();
+            try {
+                const saved = JSON.parse(localStorage.getItem('todayHighLow') || 'null');
+                if (saved && saved.date === today) {
+                    max = Math.max(max, saved.max);
+                    min = Math.min(min, saved.min);
+                }
+                localStorage.setItem('todayHighLow', JSON.stringify({ date: today, max: max, min: min }));
+            } catch (e) {} // storage unavailable: just use the forecast values
+            return { max: max, min: min };
+        }
+
+        function fromMetno(json) {
+            const series = json.properties.timeseries;
+            const nowSec = Date.now() / 1000;
+            const today = new Date().toDateString();
+            const hourly = { time: [], temperature_2m: [], weather_code: [], is_day: [], precipitation: [], precipitation_probability: [] };
+            const apparent = [];
+            let currentIdx = 0, max = -Infinity, min = Infinity;
+
+            series.forEach(entry => {
+                const next1 = entry.data.next_1_hours;
+                if (!next1) return; // beyond ~2.5 days met.no only has 6-hour blocks
+                const t = Date.parse(entry.time) / 1000;
+                const details = entry.data.instant.details;
+                const sym = metnoSymbol(next1.summary.symbol_code);
+                if (t <= nowSec) currentIdx = hourly.time.length;
+                if (new Date(t * 1000).toDateString() === today) {
+                    max = Math.max(max, details.air_temperature);
+                    min = Math.min(min, details.air_temperature);
+                }
+                hourly.time.push(t);
+                hourly.temperature_2m.push(details.air_temperature);
+                hourly.weather_code.push(sym.code);
+                hourly.is_day.push(sym.isDay ? 1 : 0);
+                hourly.precipitation.push(next1.details.precipitation_amount || 0);
+                // Only provided for some locations/hours; null means "unknown", not 0 %.
+                const prob = next1.details.probability_of_precipitation;
+                hourly.precipitation_probability.push(typeof prob === 'number' ? prob : null);
+                apparent.push(details.apparent_air_temperature);
+            });
+
+            const highLow = trackTodayHighLow(max, min);
+            return {
+                current: {
+                    temperature_2m: hourly.temperature_2m[currentIdx],
+                    apparent_temperature: typeof apparent[currentIdx] === 'number' ? apparent[currentIdx] : hourly.temperature_2m[currentIdx],
+                    weather_code: hourly.weather_code[currentIdx],
+                    is_day: hourly.is_day[currentIdx]
+                },
+                hourly: hourly,
+                daily: { temperature_2m_max: [highLow.max], temperature_2m_min: [highLow.min] }
+            };
+        }
+
         const WEATHER_MAX_AGE = 30 * 60 * 1000; // after 30 min without a refresh, hide stale values
 
         function renderWeather(data) {
@@ -326,7 +405,7 @@
             for (let i = 0; i < 4; i++) {
                 let idx = nextHourIndex + i;
                 const hour = new Date(times[idx]*1000).getHours();
-                const isDayForecast = hour > 6 && hour < 20;
+                const isDayForecast = data.hourly.is_day[idx] === 1;
                 const item = document.createElement('div');
                 item.className = 'forecast-item';
                 item.innerHTML = `
@@ -348,16 +427,15 @@
         }
 
         async function fetchWeather() {
-            // Weather is fetched via a Cloudflare Worker proxy (Google-Trust-Services cert, trusted by
-            // old iOS) because Open-Meteo's Let's Encrypt cert is no longer trusted by iPhone 6/7.
-            const url = `https://odd-violet-21d8.adrianinfo.workers.dev/?latitude=${LAT}&longitude=${LON}&current=temperature_2m,apparent_temperature,weather_code,is_day&hourly=temperature_2m,weather_code&timeformat=unixtime&timezone=Europe%2FBerlin`;
+            // MET Norway, called directly (see the adapter above for why not Open-Meteo).
+            const url = `https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${LAT}&lon=${LON}`;
             const MAX_ATTEMPTS = 3;
 
             for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
                 try {
                     const response = await fetch(url, { cache: 'no-store' });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const data = await response.json();
+                    const data = fromMetno(await response.json());
                     if (!data.current || typeof data.current.temperature_2m !== 'number') {
                         throw new Error(`bad payload: ${data.reason || 'missing current data'}`);
                     }
